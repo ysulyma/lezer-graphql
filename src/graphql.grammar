@@ -1,0 +1,503 @@
+// https://spec.graphql.org/June2018/
+
+// TODO:
+// - try removing precedence operators
+// - match tokens more
+// - add lexical tokens thing
+
+@top document { Document }
+@precedence {
+  alias,
+  directive,
+  defn
+}
+
+@skip { whitespace | Comment | ","}
+@detectDelim
+
+/* macros */
+kw<word> { @specialize[@name={word}]<name, word> }
+
+/* https://spec.graphql.org/June2018/#sec-Appendix-Grammar-Summary.Lexical-Tokens */
+@tokens {
+  // Punctuator { $[!\$():=@\[\]{|}] | "..." }
+  
+  name { $[_A-Za-z] $[_0-9A-Za-z]* }
+
+  IntValue { IntegerPart }
+
+  IntegerPart { NegativeSign? "0" | NegativeSign? NonZeroDigit Digit* }
+
+  NegativeSign { "-" }
+
+  Digit { $[0-9] }
+
+  NonZeroDigit { $[1-9] }
+
+  FloatValue {
+    IntegerPart FractionalPart |
+    IntegerPart ExponentPart |
+    IntegerPart FractionalPart ExponentPart
+  }
+
+  FractionalPart { "." Digit* }
+  
+  ExponentPart { ExponentIndicator Sign? Digit+ }
+
+  ExponentIndicator { "e" | "E" }
+
+  Sign { "+" | "-" }
+
+  StringValue { '"' (![\\\n"] | "\\" _)* '"'? }
+
+  boolean { "true" | "false" }
+  null { "null" }
+  whitespace { $[ \t] }
+
+  Comment { "#" ![\n\r]* }
+
+  "{" "}"
+
+  @precedence {
+    boolean,
+    null,
+    FloatValue,
+    IntValue,
+    name
+  }
+}
+
+/* https://spec.graphql.org/June2018/#sec-Appendix-Grammar-Summary.Document */
+
+// https://spec.graphql.org/June2018/#Document
+Document { Definition+ }
+
+// https://spec.graphql.org/June2018/#Definition
+Definition {
+  ExecutableDefinition |
+  TypeSystemDefinition |
+  TypeSystemExtension
+}
+
+// https://spec.graphql.org/June2018/#ExecutableDefinition
+ExecutableDefinition {
+  OperationDefinition |
+  FragmentDefinition
+}
+
+// https://spec.graphql.org/June2018/#OperationDefinition
+OperationDefinition {
+  OperationType name? VariableDefinitions? Directives? SelectionSet |
+  SelectionSet
+}
+
+// https://spec.graphql.org/June2018/#OperationType
+OperationType {
+  kw<"query"> |
+  kw<"mutation"> |
+  kw<"subscription">
+}
+
+// https://spec.graphql.org/June2018/#SelectionSet
+SelectionSet {
+  "{" Selection+ "}"
+}
+
+// https://spec.graphql.org/June2018/#Selection
+Selection {
+  Field |
+  FragmentSpread |
+  InlineFragment
+}
+
+// https://spec.graphql.org/June2018/#Field
+Field {
+  Alias? name Arguments? Directives? SelectionSet?
+}
+
+// https://spec.graphql.org/June2018/#Alias
+Alias {
+  name ":" !alias
+}
+
+// https://spec.graphql.org/June2018/#Arguments
+Arguments {
+  "(" Argument+ ")"
+}
+
+Arguments_Const {
+  "(" Argument_Const+ ")"
+}
+
+// https://spec.graphql.org/June2018/#Argument
+Argument {
+  name ":" Value
+}
+
+Argument_Const {
+  name ":" Value_Const
+}
+
+// https://spec.graphql.org/June2018/#FragmentSpread
+FragmentSpread {
+  "..." FragmentName Directives?
+}
+
+// https://spec.graphql.org/June2018/#InlineFragment
+InlineFragment {
+  "..." TypeCondition? Directives? SelectionSet
+}
+
+// https://spec.graphql.org/June2018/#FragmentDefinition
+FragmentDefinition {
+  kw<"fragment"> FragmentName TypeCondition Directives? SelectionSet
+}
+
+// https://spec.graphql.org/June2018/#FragmentName
+FragmentName {
+  name
+}
+
+// https://spec.graphql.org/June2018/#TypeCondition
+TypeCondition {
+  kw<"on"> NamedType
+}
+
+// https://spec.graphql.org/June2018/#Value
+Value {
+  Variable |
+  IntValue |
+  FloatValue |
+  StringValue |
+  BooleanValue |
+  NullValue |
+  EnumValue |
+  ListValue |
+  ObjectValue
+}
+
+Value_Const {
+  IntValue |
+  FloatValue |
+  StringValue |
+  BooleanValue |
+  NullValue |
+  EnumValue |
+  ListValue_Const |
+  ObjectValue_Const
+}
+
+// https://spec.graphql.org/June2018/#BooleanValue
+BooleanValue {
+  boolean
+}
+
+// https://spec.graphql.org/June2018/#NullValue
+NullValue {
+  null
+}
+
+// https://spec.graphql.org/June2018/#EnumValue
+EnumValue {
+  name
+}
+
+// https://spec.graphql.org/June2018/#ListValue
+ListValue {
+  "[" Value* "]"
+}
+
+ListValue_Const {
+  "[" Value_Const* "]"
+}
+
+// https://spec.graphql.org/June2018/#ObjectValue
+ObjectValue {
+  "{" ObjectField* "}"
+}
+
+ObjectValue_Const {
+  "{" ObjectField_Const* "}"
+}
+
+// https://spec.graphql.org/June2018/#ObjectField
+ObjectField {
+  name ":" Value
+}
+
+ObjectField_Const {
+  name ":" Value_Const
+}
+
+// https://spec.graphql.org/June2018/#VariableDefinitions
+VariableDefinitions {
+  "(" VariableDefinition+ ")"
+}
+
+// https://spec.graphql.org/June2018/#VariableDefinition
+VariableDefinition {
+  Variable ":" Type DefaultValue?
+}
+
+// https://spec.graphql.org/June2018/#Variable
+Variable {
+  "$" name
+}
+
+// https://spec.graphql.org/June2018/#DefaultValue
+DefaultValue {
+  "=" Value_Const
+}
+
+// https://spec.graphql.org/June2018/#Type
+Type {
+  NamedType |
+  ListType |
+  NonNullType
+}
+
+// https://spec.graphql.org/June2018/#NamedType
+NamedType {
+  name
+}
+
+// https://spec.graphql.org/June2018/#ListType
+ListType {
+  "[" Type "]"
+}
+
+// https://spec.graphql.org/June2018/#NonNullType
+NonNullType {
+  NamedType "!" |
+  ListType "!"
+}
+
+// https://spec.graphql.org/June2018/#Directives
+Directives {
+  Directive+
+}
+
+Directives_Const {
+  Directive_Const+
+}
+
+// https://spec.graphql.org/June2018/#Directive
+Directive {
+  "@" name Arguments?
+}
+
+Directive_Const {
+  "@" name Arguments_Const?
+}
+
+// https://spec.graphql.org/June2018/#TypeSystemDefinition
+TypeSystemDefinition {
+  SchemaDefinition |
+  TypeDefinition |
+  DirectiveDefinition
+}
+
+// https://spec.graphql.org/June2018/#TypeSystemExtension
+TypeSystemExtension {
+  SchemaExtension |
+  TypeExtension
+}
+
+// https://spec.graphql.org/June2018/#SchemaDefinition
+SchemaDefinition {
+  kw<"schema"> Directives_Const? "{" OperationTypeDefinition+ "}"
+}
+
+// https://spec.graphql.org/June2018/#SchemaExtension
+SchemaExtension {
+  kw<"extend"> kw<"schema"> Directives_Const? !alias "{" OperationTypeDefinition+ "}" |
+  kw<"extend"> kw<"schema"> Directives_Const
+}
+
+// https://spec.graphql.org/June2018/#OperationTypeDefinition
+OperationTypeDefinition {
+  OperationType ":" NamedType
+}
+
+// https://spec.graphql.org/June2018/#Description
+Description {
+  StringValue
+}
+
+// https://spec.graphql.org/June2018/#TypeDefinition
+TypeDefinition {
+  ScalarTypeDefinition |
+  ObjectTypeDefinition |
+  InterfaceTypeDefinition |
+  UnionTypeDefinition |
+  EnumTypeDefinition |
+  InputObjectTypeDefinition
+}
+
+// https://spec.graphql.org/June2018/#TypeExtension
+TypeExtension {
+  ScalarTypeExtension |
+  ObjectTypeExtension |
+  InterfaceTypeExtension |
+  UnionTypeExtension |
+  EnumTypeExtension |
+  InputObjectTypeExtension
+}
+
+// https://spec.graphql.org/June2018/#ScalarTypeDefinition
+ScalarTypeDefinition {
+  Description? kw<"scalar"> name Directives_Const?
+}
+
+// https://spec.graphql.org/June2018/#ScalarTypeExtension
+ScalarTypeExtension {
+  kw<"extend"> kw<"scalar"> name Directives_Const
+}
+
+// https://spec.graphql.org/June2018/#ObjectTypeDefinition
+ObjectTypeDefinition {
+  Description? kw<"type"> name ImplementsInterfaces? Directives_Const? FieldsDefinition?
+}
+
+// https://spec.graphql.org/June2018/#ObjectTypeExtension
+ObjectTypeExtension {
+  kw<"extend"> kw<"type"> name ImplementsInterfaces? Directives_Const? FieldsDefinition |
+  kw<"extend"> kw<"type"> name ImplementsInterfaces? Directives_Const |
+  kw<"extend"> kw<"type"> name ImplementsInterfaces
+}
+
+// https://spec.graphql.org/June2018/#ImplementsInterfaces
+ImplementsInterfaces {
+  kw<"implements"> "&"? NamedType |
+  ImplementsInterfaces "&" NamedType
+}
+
+// https://spec.graphql.org/June2018/#FieldsDefinition
+FieldsDefinition {
+  !defn "{" FieldDefinition+ "}"
+} 
+
+// https://spec.graphql.org/June2018/#FieldDefinition
+FieldDefinition {
+  Description? name ArgumentsDefinition? ":" Type Directives_Const? 
+}
+
+// https://spec.graphql.org/June2018/#ArgumentsDefinition
+ArgumentsDefinition {
+  "(" InputValueDefinition+ ")"
+}
+
+// https://spec.graphql.org/June2018/#InputValueDefinition
+InputValueDefinition {
+  Description? name ":" Type DefaultValue? Directives_Const? 
+}
+
+// https://spec.graphql.org/June2018/#InterfaceTypeDefinition
+InterfaceTypeDefinition {
+  Description? kw<"interface"> name Directives_Const? FieldsDefinition? 
+}
+
+// https://spec.graphql.org/June2018/#InterfaceTypeExtension
+InterfaceTypeExtension {
+  kw<"extend"> kw<"interface"> name Directives_Const? FieldsDefinition |
+  kw<"extend"> kw<"interface"> name Directives_Const
+}
+
+// https://spec.graphql.org/June2018/#UnionTypeDefinition
+UnionTypeDefinition {
+  Description? kw<"union"> name Directives_Const? UnionMemberTypes? 
+}
+
+// https://spec.graphql.org/June2018/#UnionMemberTypes
+UnionMemberTypes {
+  "=" "|"? NamedType |
+  UnionMemberTypes "|" NamedType
+}
+
+// https://spec.graphql.org/June2018/#UnionTypeExtension
+UnionTypeExtension {
+  kw<"extend"> kw<"union"> name Directives_Const? UnionMemberTypes |
+  kw<"extend"> kw<"union"> name Directives_Const
+}
+
+// https://spec.graphql.org/June2018/#EnumTypeDefinition
+EnumTypeDefinition {
+  Description? kw<"enum"> name Directives_Const? EnumValuesDefinition? 
+}
+
+// https://spec.graphql.org/June2018/#EnumValuesDefinition
+EnumValuesDefinition {
+  !defn
+  "{" EnumValueDefinition+ "}"
+}
+
+// https://spec.graphql.org/June2018/#EnumValueDefinition
+EnumValueDefinition {
+  Description? EnumValue Directives_Const? 
+}
+
+// https://spec.graphql.org/June2018/#EnumTypeExtension
+EnumTypeExtension {
+  kw<"extend"> kw<"enum"> name Directives_Const? EnumValuesDefinition |
+  kw<"extend"> kw<"enum"> name Directives_Const
+}
+
+// https://spec.graphql.org/June2018/#InputObjectTypeDefinition
+InputObjectTypeDefinition {
+  Description? kw<"input"> name Directives_Const? InputFieldsDefinition? 
+}
+
+// https://spec.graphql.org/June2018/#InputFieldsDefinition
+InputFieldsDefinition {
+  !defn
+  "{" InputValueDefinition+ "}"
+}
+
+// https://spec.graphql.org/June2018/#InputObjectTypeExtension
+InputObjectTypeExtension {
+  kw<"extend"> kw<"input"> name Directives_Const? InputFieldsDefinition |
+  kw<"extend"> kw<"input"> name Directives_Const
+}
+
+// https://spec.graphql.org/June2018/#DirectiveDefinition
+DirectiveDefinition {
+  Description? kw<"directive"> "@" name ArgumentsDefinition? kw<"on"> DirectiveLocations
+}
+
+// https://spec.graphql.org/June2018/#DirectiveLocations
+DirectiveLocations {
+  "|"? DirectiveLocation |
+  DirectiveLocations "|" DirectiveLocation
+}
+
+// https://spec.graphql.org/June2018/#DirectiveLocation
+DirectiveLocation {
+  ExecutableDirectiveLocation |
+  TypeSystemDirectiveLocation
+}
+
+// https://spec.graphql.org/June2018/#ExecutableDirectiveLocation
+ExecutableDirectiveLocation {
+  "QUERY" |
+  "MUTATION" |
+  "SUBSCRIPTION" |
+  "FIELD" |
+  "FRAGMENT_DEFINITION" |
+  "FRAGMENT_SPREAD" |
+  "INLINE_FRAGMENT"
+}
+
+// https://spec.graphql.org/June2018/#TypeSystemDirectiveLocation
+TypeSystemDirectiveLocation {
+  "SCHEMA" |
+  "SCALAR" |
+  "OBJECT" |
+  "FIELD_DEFINITION" |
+  "ARGUMENT_DEFINITION" |
+  "INTERFACE" |
+  "UNION" |
+  "ENUM" |
+  "ENUM_VALUE" |
+  "INPUT_OBJECT" |
+  "INPUT_FIELD_DEFINITION"
+}
